@@ -325,12 +325,12 @@ if st.session_state.final_state:
 
     with tab1:
         st.subheader("Generated Blog Post")
-        report_content = None
-        report_file = get_state_value(state, 'report_file')
-        if report_file and os.path.exists(report_file):
-            report_content = load_report_from_file(report_file)
-        if not report_content:
-            report_content = get_state_value(state, 'report') or get_state_value(state, 'story_text') or get_state_value(state, 'enhanced_text')
+        #report_content = None
+        # report_file = get_state_value(state, 'report_file')
+        # if report_file and os.path.exists(report_file):
+        #     report_content = load_report_from_file(report_file)
+        #if not report_content:
+        report_content = get_state_value(state, 'report') or get_state_value(state, 'text')
         if report_content:
             st.markdown(report_content)
         else:

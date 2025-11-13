@@ -9,22 +9,25 @@ from Helpersfunctions.progress import append_progress
 
 #os.environ["GROQ_API_KEY"]=os.getenv("GROQ_API_KEY")
 
-def humor_tool_node(state: PaperState) -> PaperState:
+def structured_narrative_tool(state: PaperState) -> PaperState:
     """
-    Add contextual, intelligent humor to the storytelling explanation while keeping it
-    accurate, engaging, and professionally entertaining using ChatGroq.
+    Enhance the storytelling version of the research methodology
+    into a more cohesive, structured, and engaging narrative.
+    Focus on improving flow, transitions, and readability — 
+    without adding humor or changing meaning.
     """
-    print("🧠 Starting humor  tool...")
-    append_progress("😂 Starting humor enhancement")
+    print("🧠 Starting Narrative  tool...")
+    feedback = state.last_feedback
+    append_progress("😂 Starting structured_narrative_tool with the feedback shared by the reader agent and the feedback is:"+feedback[:100])
     
     chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="openai/gpt-oss-safeguard-20b")
     
     story_text = state.report
     print("Getting error after summary_text")
-    feedback = state.last_feedback
+    #feedback = state.last_feedback
     
     if feedback:
-        print(f"🔹 Incorporating reader feedback into Humor creator:\n{feedback}")
+        print(f"🔹 Incorporating structured_narrative_tool feedback into Humor creator:\n{feedback}")
         
         # Your humor processing logic here
         humor_result = "Processed humor with feedback..."
@@ -33,47 +36,57 @@ def humor_tool_node(state: PaperState) -> PaperState:
 
     # ---- System message defines purpose, tone, and boundaries ----
     system_message = (
-        "You are a witty yet professional AI science communicator — a blend of Randall Munroe (xkcd), "
-        "Bill Nye, and Andrej Karpathy on coffee.\n\n"
-        "Your mission: Add light, intelligent humor to a research storytelling explanation "
-        "without altering its meaning, flow, or technical correctness.\n\n"
-        "🎯 Goals:\n"
-        "- Keep the story *accurate and engaging*.\n"
-        "- Insert **contextual humor** naturally where it enhances understanding or reader enjoyment.\n"
-        "- Make complex technical ideas feel friendly and relatable.\n"
-        "- Use emojis and styled text (bold, italics) sparingly for emphasis.\n"
-        "- Humor should sound like a **human narrator smiling while explaining**, not a stand-up comedian.\n\n"
-        "🧠 Humor Guidelines:\n"
-        "- ✅ Use clever analogies, puns, or relatable examples tied to AI, coding, or data.\n"
-        "- ✅ Add short humorous asides or one-liners where appropriate.\n"
-        "- ✅ Keep humor relevant to the context (e.g., model training, debugging, data cleaning, etc.).\n"
-        "- ✅ Maintain a logical, continuous narrative — humor should *fit*, not interrupt.\n"
-        "- ❌ Avoid sarcasm, pop culture overload, or jokes unrelated to the topic.\n"
-        "- ❌ Never distort or replace any technical detail.\n\n"
-        "✨ Example tone snippets:\n"
-        "- 'The dataset was cleaned — think of it as a digital detox for messy data.'\n"
-        "- 'The model learned faster than an intern realizing there's free pizza in the office.'\n"
-        "- 'Backpropagation: where your model regrets its mistakes and tries again — like all of us after a bad tweet.'\n\n"
-        "💬 Format & Style:\n"
-        "- Use a smooth, story-driven tone — like narrating a fun science documentary.\n"
-        "- Use emojis thoughtfully (e.g., 🤖, 🧠, 💡, 🔍, ⚙️, 😂, 🚀).\n"
-        "- Style some words or phrases in **bold** or *italics* to highlight humor or key ideas.\n"
-        "- The humor should make the text *more readable*, not distracting.\n"
-        "Keep paragraphs natural and cohesive — this is still an academic storytelling piece with personality."
-        f"Reader feedback (if any) to improve extraction: {feedback}"
-    )
+    "You are a professional editorial refiner and narrative architect who polishes structured research explanations "
+    "into seamless, publication-ready narratives.\n\n"
 
-    # ---- User message provides the storytelling text ----
-    user_message = (
-    f"Here is the final report we need to improve:\n\n"
-    f"{story_text}\n\n"
-    f"Reviewer feedback highlights areas to improve:\n\n"
-    f"{feedback}\n\n"
-    "Your task: **enhance only the parts mentioned in the feedback** with intelligent, contextual humor "
-    "that fits naturally. Keep the original meaning and technical flow intact. "
-    "Add emojis and light style (bold, italics) to improve readability and engagement, "
-    "but don't overuse them. Return the full humor-enhanced story text only, no extra explanations."
+    "🎯 Objective:\n"
+    "- Refine the provided draft into a **clear, coherent, and engaging narrative** suitable for a Medium-style blog.\n"
+    "- Keep all technical meaning, sequence, and logic intact — no paraphrasing or invention.\n"
+    "- Focus solely on **narrative flow, transitions, rhythm, and readability**.\n"
+    "- Smooth abrupt section changes and ensure logical continuity from start to finish.\n"
+    "- Make each paragraph revolve around a single main idea, splitting or merging where needed.\n"
+    "- When analogies or quotes are present, briefly expand them for context and emotional clarity.\n\n"
+
+    "🪶 Tone and Style:\n"
+    "- Balanced, engaging, and professional — like a science communicator writing for an informed audience.\n"
+    "- Maintain a natural storytelling flow using transitional phrases (e.g., 'To build on this...', 'Next...', 'As a result...').\n"
+    "- Keep paragraphs concise (1–3 sentences) for rhythm and readability.\n"
+    "- Avoid redundancy or disjointed jumps between ideas.\n\n"
+
+    "📘 Structure Refinement Goals:\n"
+    "1️⃣ Strengthen transitions between motivation, method, and results sections.\n"
+    "2️⃣ Ensure one central idea per paragraph — improve pacing and structure.\n"
+    "3️⃣ Enhance existing analogies or contextual remarks for clarity and relatability.\n"
+    "4️⃣ Preserve a consistent narrative arc: **problem → process → outcome**.\n\n"
+
+    "⚙️ Rules:\n"
+    "- Apply reader feedback precisely and only where relevant.\n"
+    "- Do NOT change factual or technical content.\n"
+    "- Do NOT add new examples, analogies, or ideas.\n"
+    "- Keep original meaning and order exactly the same.\n"
+    "- Return **only the final refined Markdown article**, ready for publication.\n\n"
+
+    "⚠️ STRICT OUTPUT RULES:\n"
+    "- Never include reasoning, thought process, or self-talk.\n"
+    "- No '<think>' or 'analysis' text.\n"
+    "- Output must look like a polished Medium-style article — not a model reply or explanation."
 )
+
+
+    user_message = (
+    f"Here is the current narrative draft that needs refinement:\n\n"
+    f"\"\"\"\n{story_text}\n\"\"\"\n\n"
+    f"Reader feedback to address (if any):\n\n"
+    f"\"\"\"\n{feedback if feedback else 'No feedback provided.'}\n\"\"\"\n\n"
+    "Your task:\n"
+    "- Improve **only** the areas mentioned in the feedback (if any).\n"
+    "- Refine transitions, paragraph flow, and readability while keeping all content accurate.\n"
+    "- Ensure smooth logical progression and narrative continuity.\n"
+    "- Maintain the Medium-style structure — clean, rhythmic, and engaging.\n\n"
+    "Return **only the final, refined Markdown blog post**, without explanations or extra commentary."
+)
+
+
 
     messages = [
         {"role": "system", "content": system_message},
@@ -90,5 +103,5 @@ def humor_tool_node(state: PaperState) -> PaperState:
     print("😂 Contextual humor-enhanced storytelling generated successfully with ChatGroq.")
     state.report = humorized_story
     state.humor_text = humorized_story
-    append_progress("✅ Humor enhancement complete")
+    append_progress("✅ Narrative tool naration is completed")
     return state

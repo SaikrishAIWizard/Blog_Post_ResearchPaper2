@@ -12,12 +12,13 @@ def generate_report_node(state: PaperState) -> PaperState:
     """Generate a visually engaging LinkedIn-style Markdown report using ChatGroq."""
 
     chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="moonshotai/kimi-k2-instruct-0905")
-
-    report = f"#✨ ThinkScribe: From Research to Readability\n\n"
+    title = getattr(state, 'title', '')
+    title_add = f'''# {title} ✨  
+*By Sai Krish* \n'''
+    report = title_add + f"#✨ ThinkScribe: From Research to Readability\n\n"
     report += f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
-    title = state.title
-    enhanced_text = state.text
+    enhanced_text = getattr(state, 'text', '')
     #feedback = state.last_feedback
 
     if not enhanced_text:
@@ -26,44 +27,51 @@ def generate_report_node(state: PaperState) -> PaperState:
         return state
 
     # Show we're starting report generation
-    append_progress("Generating LinkedIn-style report with LLM")
+    append_progress("Generating LinkedIn-style report with LLM using the styling agent")
 
     # ---------------- SYSTEM MESSAGE ----------------
     system_message = (
-        "You are a creative social media editor and Markdown stylist who crafts story-driven "
-        "LinkedIn posts from technical content.\n\n"
-        "🎯 Objective:\n"
-        "- Transform the given text into a **beautiful LinkedIn-style Markdown post**.\n"
-        "- Keep all facts, logic, and sequence **exactly the same** — no paraphrasing or rewriting.\n"
-        "- Focus entirely on **structure, rhythm, formatting, and emotional flow**.\n\n"
-        "🪶 Tone:\n"
-        "- Conversational, engaging, and reflective — like a professional sharing a learning journey.\n"
-        "- Blend storytelling with insight; keep a natural human rhythm.\n"
-        "- Avoid overly academic phrasing — sound clear and authentic.\n\n"
-        "🎨 Formatting Style:\n"
-        "- Use `# {title}` as the headline — include **one fitting emoji**.\n"
-        "- Use short paragraphs (1–3 sentences max) for rhythm.\n"
-        "- Add emojis that match the emotion or flow (✨💡🚀🔥💭➡️📊🧠🙌 etc.).\n"
-        "- Highlight key ideas using **bold**, *italics*, and `>` blockquotes.\n"
-        "- Use bullet points (•) or numbered steps (1️⃣ 2️⃣ 3️⃣) for clarity where needed.\n"
-        "- Use color hints with emojis (🟢🔵🟣🟠) to segment sections visually.\n"
-        "- End the post with a short **reflective takeaway or call-to-thought** — "
-        "something that fits LinkedIn’s professional tone (💬🤔🙌).\n\n"
-        "⚠️ Rules:\n"
-        "- Do **not** add new ideas, summaries, or conclusions.\n"
-        "- Do **not** alter any original meaning.\n"
-        "- Maintain the natural storytelling flow while enhancing readability and emotion.\n"
-        "- Return **only** the final styled Markdown — no notes, explanations, or metadata."
+        "You are a professional **Medium blog editor and stylist**. "
+        "Your job is to make a technical article look like a clean, well-structured Medium post.\n\n"
+        "🎯 **Objective:**\n"
+        "- Format the content into a **Medium-style Markdown blog**.\n"
+        "- Focus purely on **readability**, **visual flow**, and **section rhythm**.\n"
+        "- Do NOT alter, summarize, or add new content.\n"
+        "- Keep all sentences, ideas, and order identical.\n\n"
+        "🖋️ **Tone and Structure Guidelines:**\n"
+        "- Write like a thoughtful explainer: smooth transitions, gentle pacing, clear hierarchy.\n"
+        "- Break dense paragraphs into 2–3 sentence blocks for rhythm.\n"
+        "- Use clean Markdown headings (`##`, `###`) for logical sections.\n"
+        "- Maintain a professional but accessible tone — clear, reflective, and narrative.\n\n"
+        "🎨 **Styling Rules:**\n"
+        "- Begin with `# {title}` — no emojis in the title.\n"
+        "- Add a short introductory paragraph if already present (do not invent one).\n"
+        "- Use **bold** and *italics* for emphasis on key ideas.\n"
+        "- Use blockquotes (`>`) for key insights, comparisons, or reflective statements.\n"
+        "- Maintain spacing between major sections (two line breaks before new headers).\n"
+        "- For embedded visuals, enforce consistent size and centering:\n"
+        "  <p align='center'><img src='...' width='720px' height='420px' "
+        "style='object-fit:cover; border-radius:12px; box-shadow:0 3px 8px rgba(0,0,0,0.2); margin:24px 0;'/></p>\n"
+        "- Avoid emoji clutter — only keep if they’re already present and contextually meaningful.\n"
+        "- End the post gracefully with a closing thought already within the text (no new lines).\n\n"
+        "⚠️ **Rules:**\n"
+        "- Do NOT rephrase or add content.\n"
+        "- Do NOT include any explanations or metadata.\n"
+        "- Return only the final Medium-style Markdown text."
+        "⚠️ STRICT OUTPUT RULES:\n"
+"- Never include reasoning, analysis, or thought process.\n"
+"- No '<think>' or 'analysis' text.\n"
+"- Return only the final, polished Markdown blog post — ready for publication.\n"
+"- The output must look like a cohesive Medium-style article, not a model response."
     )
 
-    # ---------------- USER MESSAGE ----------------
+    # --------------- USER PROMPT ---------------
     user_message = (
-        f"Here is the content to format:\n\n"
+        f"Here is the content to format as a Medium-style blog post:\n\n"
         f"Title: {title}\n\n"
         f"Content:\n{enhanced_text}\n\n"
-        "Now format this content into a **LinkedIn-style Markdown post** "
-        "that looks visually appealing, easy to read, and emotionally engaging. "
-        "Keep the tone conversational, with natural breaks, emojis, and clear rhythm."
+        "Now format this text into a **Medium-style Markdown post** that looks professional, "
+        "easy to read, and visually elegant — while keeping all wording and sequence intact."
     )
 
     messages = [
@@ -76,6 +84,8 @@ def generate_report_node(state: PaperState) -> PaperState:
         report_output = response.content.strip() if hasattr(response, "content") else str(response).strip()
     except Exception as e:
         report_output = f"Error generating LinkedIn-style report with ChatGroq: {e}"
+        print(f"Error generating LinkedIn-style report with ChatGroq: {e}")
+        append_progress(f"Error generating LinkedIn-style report with ChatGroq: {e}")
 
     # Combine and save
     report += report_output

@@ -17,9 +17,12 @@ def domain_expert_structuring_tool_node(state: PaperState) -> PaperState:
         model="qwen/qwen3-32b"
     )
     print("🧠 Starting domain expert structuring tool...")
-    append_progress("🧠 Starting domain expert structuring tool...")
+    
+    # append_progress("🧠 Starting domain expert structuring tool...")
     
     feedback = state.last_feedback
+    append_progress("😂 Starting domain expert enhancement with the feedback shared by the reader agent and the feedback is:"+feedback[:100])
+    
 
     print(f"🔹 Received feedback for structuring:\n{feedback}")
     methodology_text = state.report
@@ -37,39 +40,45 @@ def domain_expert_structuring_tool_node(state: PaperState) -> PaperState:
     domain_expert = state.domain_expert
 
     # --- Step 2: Structured technical extraction ---
-    system_message = {
-        "role": "system",
-        "content": (
-            "You are a precise academic summarizer that restructures research methodologies "
-            "into technically organized Markdown summaries for better understanding."
-            f"Reader feedback (if any) to improve extraction: {feedback}"
-        )
-    }
+    system_message = (
+    "You are an expert academic editor and technical summarizer who refines research methodology sections "
+    "based strictly on reviewer feedback.\n\n"
+    "🎯 Objective:\n"
+    "- Preserve all original technical content, logic, and formatting.\n"
+    "- Apply only the improvements suggested in the reviewer feedback.\n"
+    "- Focus on structure, clarity, and flow — do not alter meaning or add new content.\n"
+    "- Improve transitions, paragraph organization, and readability where feedback indicates issues.\n\n"
+    "🧠 Editing Style:\n"
+    "- Keep the tone precise, academic, and coherent.\n"
+    "- Strengthen logical transitions and smooth out abrupt sections.\n"
+    "- Use concise and clear phrasing without losing technical depth.\n"
+    "- Maintain Markdown structure and all factual details.\n\n"
+    "⚙️ Rules:\n"
+    "- Do NOT add new information or interpretations.\n"
+    "- Do NOT explain your edits or output reasoning text.\n"
+    "- Return only the final, polished Markdown methodology text — ready for inclusion in the research blog.\n"
+    "- Apply feedback improvements accurately and minimally — edit only where required."
+)
 
-    user_message = {
-    "role": "user",
-    "content": f"""
-You are given the final report text of a research paper in **{domain_expert}**:
+    user_message = (
+    f"You are given the methodology section of a research paper in **{domain_expert}**:\n\n"
+    f"\"\"\"\n{methodology_text}\n\"\"\"\n\n"
+    f"Here is the reviewer feedback to apply:\n\n"
+    f"\"\"\"\n{feedback}\n\"\"\"\n\n"
+    "Your task:\n"
+    "- Improve only the parts mentioned in the feedback (e.g., flow, transitions, clarity, readability).\n"
+    "- Keep all other sections untouched.\n"
+    "- Do not add, remove, or reinterpret technical content.\n\n"
+    "Respond **only with the updated Markdown methodology text**, no explanations or comments."
+)
 
-\"\"\"
-{methodology_text}
-\"\"\"
-
-Reviewer feedback highlights issues:
-
-\"\"\"
-{feedback}
-\"\"\"
-
-Your task: **improve only the parts mentioned in the feedback**.  
-Do NOT change parts that are fine. Preserve the original wording and flow where no improvements are needed.
-
-Respond **only with the updated methodology text**, no extra explanations or comments.
-"""
-}
+    messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": user_message}
+    ]
 
     try:
-        response = chat_groq.invoke([system_message, user_message])
+        response = chat_groq.invoke(messages)
         structured_output = (
             response.content.strip()
             if hasattr(response, "content")

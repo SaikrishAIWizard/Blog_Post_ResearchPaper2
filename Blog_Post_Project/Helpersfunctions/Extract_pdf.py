@@ -7,6 +7,7 @@ from Helpersfunctions.progress import append_progress
 def extract_pdf_node(state: PaperState) -> PaperState:
     """Extract text and images from the PDF."""
     #pdf_path = state.get("pdf_path", None)
+    append_progress("Extract text from the PDF.")
     pdf_path = state.pdf_path
     
     doc = fitz.open(pdf_path)
@@ -31,7 +32,8 @@ def extract_pdf_node(state: PaperState) -> PaperState:
     state.text = text
     #state["images"] = image_paths
     msg = f"📄 Extracted text length: {len(text)}"
+    append_progress(f"📄 Extracted text length: {len(text)}")
     print(msg)
-    append_progress(msg)
+    #append_progress(msg)
     return state
 

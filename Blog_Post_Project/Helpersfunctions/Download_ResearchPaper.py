@@ -65,7 +65,7 @@ def download_research_paper_node(state: PaperState) -> PaperState:
     pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
     print(f"\n📥 Using constructed URL: {pdf_url}")
 
-    out_path = os.path.join("ResearchPapers", f"{arxiv_id}.pdf")
+    out_path = os.path.join("ResearchPapers", f"research_paper.pdf")
     try:
         resp = requests.get(pdf_url, stream=True, timeout=30)
         resp.raise_for_status()
@@ -75,7 +75,7 @@ def download_research_paper_node(state: PaperState) -> PaperState:
                     f.write(chunk)
         print(f"✅ Downloaded PDF as {arxiv_id}.pdf")
         print(f"    (Downloaded via direct URL)")
-        append_progress(f"Downloaded PDF: {out_path}")
+        append_progress(f"Downloaded the Research Paper")
     except Exception as e:
         print(f"❌ Direct download failed ({e})")
         print("🔄 Attempting fallback with arxiv library...")
@@ -88,8 +88,8 @@ def download_research_paper_node(state: PaperState) -> PaperState:
         # Download the PDF of the paper (saved to the current directory)
         paper.download_pdf(filename=f"ResearchPapers/{arxiv_id}.pdf")
     state.title = paper.title
-    state.pdf_path = f"ResearchPapers/{arxiv_id}.pdf"
-    print(f"Downloaded PDF as {arxiv_id}.pdf")
+    state.pdf_path = f"ResearchPapers/research_paper.pdf"
+    print(f"Downloaded PDF as research_paper.pdf")
     append_progress(f"Paper metadata extracted: {paper.title}")
     return state
 

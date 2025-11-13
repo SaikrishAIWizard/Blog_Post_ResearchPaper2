@@ -14,9 +14,12 @@ def storytelling_tool_node(state: PaperState) -> PaperState:
     using ChatGroq with clear system+user messages.
     """
 
-    chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="llama-3.1-8b-instant")
+    chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="openai/gpt-oss-20b")
+    # feedback = state.last_feedback
+    # append_progress("🎯 Starting storytelling enhancement")
     feedback = state.last_feedback
-    append_progress("🎯 Starting storytelling enhancement")
+    append_progress("😂 Starting storytelling enhancement with the feedback shared by the reader agent and the feedback is:"+feedback[:100])
+    
     if feedback:
         print(f"🔹 Incorporating reader feedback into Humor creator:\n{feedback}")
 
@@ -27,38 +30,41 @@ def storytelling_tool_node(state: PaperState) -> PaperState:
 
     # ---- System message defines purpose and tone ----
     system_message = (
-        "You are a world-class science communicator who specializes in explaining "
-        "complex research methods in a structured, story-like way that anyone can understand.\n\n"
-        "Your job is to transform the methodology of a research paper into a continuous, "
-        "engaging, and logically flowing story — like a guided tour of how the system works.\n\n"
-        "🎯 Goals:\n"
-        "- Maintain 100% factual accuracy with the original methodology.\n"
-        "- Explain **inputs, processes, and outputs** step by step.\n"
-        "- Use clean, realistic **real-world analogies** that clarify each step.\n"
-        "- Preserve all technical details — models, datasets, architectures, algorithms, etc.\n"
-        "- Keep the tone engaging, educational, and visually descriptive.\n\n"
-        "🧩 Structure Guidelines:\n"
-        "1. **Start** by introducing what problem the method is trying to solve and what goes into it (inputs).\n"
-        "2. **Walk through** each stage of the process logically, explaining what happens and why.\n"
-        "3. **Illustrate** key technical steps using short, clear analogies or scenarios that help readers visualize the system.\n"
-        "4. **End** by summarizing how the process produces meaningful outcomes.\n\n"
-        "🖋️ Style:\n"
-        "- Write like a teacher explaining a fascinating system.\n"
-        "- Keep paragraphs short and naturally connected.\n"
-        "- Avoid buzzwords and heavy jargon — simplify without losing accuracy.\n"
-        "- Use subtle storytelling tone — not overly dramatic, not overly formal.\n"
-        "- Include emojis sparingly for readability and engagement (💡🔍⚙️🚀🧠✨ are good choices).\n\n"
-        "🚫 Do NOT add results, conclusions, or future work — focus ONLY on explaining how the methodology works."
-        f"Reader feedback (if any) to improve extraction: {feedback}"
-    )
+    "You are a world-class research storytelling editor. "
+    "Your job is to refine an existing research blog draft based strictly on reviewer feedback.\n\n"
 
-    # ---- User message provides methodology text ----
+    "🎯 Objective:\n"
+    "- Improve the **storytelling flow, coherence, and readability** of the existing draft.\n"
+    "- Focus entirely on implementing the reviewer’s feedback — especially SPECIFIC_ISSUES and ACTION_ITEMS.\n"
+    "- Keep the existing meaning, tone, and structure intact.\n"
+    "- Your goal is *incremental narrative improvement*, not rewriting from scratch.\n\n"
+
+    "🪶 Tone and Style:\n"
+    "- Maintain the author’s original voice and tone.\n"
+    "- Strengthen **transitions** and ensure smooth connections between sections.\n"
+    "- Simplify dense or overly technical sentences for clarity, but preserve precision.\n"
+    "- Use short paragraphs and rhythmic flow for readability.\n"
+    "- Avoid excessive humor or analogies unless explicitly suggested by feedback.\n"
+    "- Keep the writing natural, conversational, and cohesive — like a well-edited Medium article.\n\n"
+
+    "⚙️ Rules:\n"
+    "- Do NOT invent or add new ideas.\n"
+    "- Do NOT summarize or explain feedback — just apply it.\n"
+    "- Do NOT output reasoning or '<think>' text.\n"
+    "- Return ONLY the final, improved Markdown-formatted article — ready for publication.\n"
+    "- The article must feel refined and smoother, but still true to the original author’s draft."
+)
+
     user_message = (
-        f"Here is the final report we need to improve:\n\n"
-        f"{summary_text}\n\n"
-        f"Reviewer feedback highlights areas to improve:\n\n"
-        f"{feedback}\n\n"
-    )
+    f"Here is the current version of the research storytelling draft:\n\n"
+    f"{summary_text}\n\n"
+    f"Here is the reviewer feedback you must apply:\n\n"
+    f"{feedback}\n\n"
+    "Now revise the blog based on this feedback. Focus only on improving the areas mentioned in the feedback, "
+    "such as transitions, narrative flow, readability, and engagement. Do not alter structure or meaning — "
+    "only refine the storytelling quality."
+)
+
 
     messages = [
         {"role": "system", "content": system_message},

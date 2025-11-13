@@ -9,14 +9,14 @@ from langgraph.prebuilt import tools_condition
 
 from Agents.Summarization_agent import summarize_text_node
 from Agents.Storytelling_agent import storytelling_node
-from Agents.Humor_agent import humor_node
+from Agents.Humor_agent import structured_narrative_node
 from Agents.Visual_Illustration_agent import visual_illustration_inline_node
 from Agents.domain_expert_structuring_node import domain_expert_structuring_node
 from Agents.Reader_Agent import reader_agent_node
 
 from ToolAgents.domain_expert_structuring_agent import domain_expert_structuring_tool_node
 from ToolAgents.Storytelling_agent import storytelling_tool_node
-from ToolAgents.Humor_agent import humor_tool_node
+from ToolAgents.Humor_agent import structured_narrative_tool
 
 from Helpersfunctions.Extract_pdf import extract_pdf_node
 from Helpersfunctions.Generate_report import generate_report_node
@@ -112,10 +112,11 @@ def tool_calling_llm(state: PaperState) -> PaperState:
     loop_count = getattr(state, 'loop_count', 0) or 0
     last_feedback = getattr(state, 'last_feedback', '')
     print("🔹 Tool calling LLM with last feedback...")
+    #state.report = title_add + report_text
     append_progress("Evaluating draft with LLM rating and node selection")
 
     system_message = (
-        "You are a professional blog evaluator with expertise in academic content, storytelling, and humor. "
+        "You are a professional blog evaluator with expertise in academic content, storytelling, and structured narrative development. "
         "Your task is to:\n"
         "1. Rate the current blog draft (1-10)\n"
         "2. Provide SPECIFIC, ACTIONABLE feedback\n"
@@ -134,19 +135,19 @@ def tool_calling_llm(state: PaperState) -> PaperState:
         "1. Rate the draft on a scale of 1-10 considering:\n"
         "   - Domain accuracy and technical correctness\n"
         "   - Story coherence and narrative flow\n"
-        "   - Humor quality, appropriateness, and engagement\n"
+        "   - Narrative structure, cohesion, and transition quality\n"
         "   - Overall readability and accessibility\n\n"
         "2. Provide feedback in this EXACT format:\n"
         "   RATING: [number]\n"
         "   FEEDBACK: [Detailed critique of the draft]\n"
-        "   IMPROVEMENT_TARGET: [domain_expert | storytelling | humor]\n"
+        "   IMPROVEMENT_TARGET: [domain_expert | storytelling | structured_narrative]\n"
         "   SPECIFIC_ISSUES: [List 2-3 specific problems that the selected node should fix]\n"
         "   ACTION_ITEMS: [Concrete suggestions for improvement]\n\n"
         "3. Use the select_node tool to specify which component needs revision:\n"
         "   - If rating >= 9 or loop >= 3: select 'END' (draft is complete)\n"
         "   - If domain accuracy is weak: select 'domain_expert'\n"
-        "   - If story flow/coherence is weak: select 'storytelling'\n"
-        "   - If humor is missing/inappropriate: select 'humor'\n\n"
+        "   - If story flow/coherence is weak → select 'storytelling\n"
+        "   - If narrative structure or transitions are weak → select 'structured_narrative"
         "Be specific about WHAT needs to improve and WHY."
     )
 
@@ -219,7 +220,11 @@ def tool_calling_llm(state: PaperState) -> PaperState:
         f"✅ Action Items:\n{action_items}"
     )
     
-    state.next_node = "END" if state.loop_count >= 3 else next_node
+    
+    if state.loop_count >= 5:   
+        state.next_node = "END" 
+    else:
+        state.next_node = next_node
 
     # Save report (ensure report_file exists)
     report_name = getattr(state, 'report_file', None)
@@ -251,14 +256,14 @@ workflow.add_node("extract_pdf", extract_pdf_node)
 workflow.add_node("summarize_text", summarize_text_node)
 workflow.add_node("domain_expert", domain_expert_structuring_node)
 workflow.add_node("storytelling", storytelling_node)
-workflow.add_node("humor", humor_node)
+workflow.add_node("structured_narrative", structured_narrative_node)
 #workflow.add_node("visual_illustration_inline", visual_illustration_inline_node)
 workflow.add_node("generate_report", generate_report_node)
 #workflow.add_node("reader_agent", reader_agent_node)
 workflow.add_node("tool_calling_llm", tool_calling_llm)
 workflow.add_node("domain_expert_structuring_tool_node",domain_expert_structuring_tool_node)
 workflow.add_node("storytelling_tool_node",storytelling_tool_node)
-workflow.add_node("humor_tool_node",humor_tool_node)
+workflow.add_node("structured_narrative_tool",structured_narrative_tool)
 
 
 # Connect main flow
@@ -266,12 +271,12 @@ workflow.add_edge("download_research_paper", "extract_pdf")
 workflow.add_edge("extract_pdf", "summarize_text")
 workflow.add_edge("summarize_text", "domain_expert")
 workflow.add_edge("domain_expert", "storytelling")
-workflow.add_edge("storytelling", "humor")
+workflow.add_edge("storytelling", "structured_narrative")
 #workflow.add_edge("humor", "visual_illustration_inline")
 
 
 # Main flow into reader_agent
-workflow.add_edge("humor", "generate_report")
+workflow.add_edge("structured_narrative", "generate_report")
 workflow.add_edge("generate_report", "tool_calling_llm")
 
 # Conditional routing based on tool selection
@@ -287,14 +292,14 @@ workflow.add_conditional_edges(
     {
         "domain_expert": "domain_expert_structuring_tool_node",
         "storytelling": "storytelling_tool_node",
-        "humor": "humor_tool_node",
+        "structured_narrative": "structured_narrative_tool",
         "END": END
     }
 )
 
 workflow.add_edge("domain_expert_structuring_tool_node","tool_calling_llm")
 workflow.add_edge("storytelling_tool_node","tool_calling_llm")
-workflow.add_edge("humor_tool_node","tool_calling_llm")
+workflow.add_edge("structured_narrative_tool","tool_calling_llm")
 
 
 # Set entry point
