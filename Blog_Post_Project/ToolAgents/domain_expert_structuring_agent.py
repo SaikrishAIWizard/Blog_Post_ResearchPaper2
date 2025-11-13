@@ -87,11 +87,14 @@ def domain_expert_structuring_tool_node(state: PaperState) -> PaperState:
 
         structured_result = structured_output
         print(f"🧠 Structured methodology created ({domain_expert}).")
+        append_progress(f"🧠 Structured methodology created ({domain_expert}).")
 
     except Exception as e:
-        structured_result = f"⚠️ Error during structuring: {e}"
+        #structured_result = f"⚠️ Error during structuring: {e}"
+        append_progress(f"⚠️ Error during structuring: {e}")
+        structured_result = methodology_text
     state.report = structured_result
-    state.methodology_summary = structured_result
+    #state.methodology_summary = structured_result
     # Ensure we return the modified state so the workflow can continue
     append_progress("✅ Domain expert structuring complete")
     return state

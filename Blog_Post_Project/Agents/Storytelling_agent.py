@@ -1,86 +1,117 @@
 from langchain_groq import ChatGroq
-import os
+import os, time, tiktoken
 from models import PaperState
-
 from dotenv import load_dotenv
-load_dotenv()
 from Helpersfunctions.progress import append_progress
+import re
 
-#os.environ["GROQ_API_KEY"]=os.getenv("GROQ_API_KEY")
+load_dotenv()
 
 def storytelling_node(state: PaperState) -> PaperState:
     """
-    Explain the extracted methodology as an engaging, structured, and accurate story
-    using ChatGroq with clear system+user messages.
+    Converts the structured methodology into an engaging, story-style narrative
+    while maintaining technical accuracy and smooth flow. 
+    Uses token-based chunking and feedback refinement.
     """
 
-    chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="meta-llama/llama-prompt-guard-2-86m")
-    
-    append_progress("Storytelling agent is Working on it to make the explanation easy with real world examples")
+    # ✅ Use Groq’s high-context reasoning model
+    chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="openai/gpt-oss-20b")
 
-    summary_text = state.text
+    append_progress("🧠 Storytelling agent is crafting a structured, human-like explanation... Please wait...")
+
+    summary_text = state.text.strip() if state.text else ""
+    feedback = getattr(state, "reader_feedback", "").strip()
+
     if not summary_text:
-        state.story_text = "No methodology available for storytelling."
+        state.story_text = "⚠️ No methodology available for storytelling."
         return state
 
-    # ---- System message defines purpose and tone ----
+    # --- Use tiktoken for chunking (no Hugging Face needed) ---
+    enc = tiktoken.get_encoding("cl100k_base")
+    tokens = enc.encode(summary_text)
+    max_chunk_tokens = 2500  # safe range for qwen/llama context
+    chunks = [enc.decode(tokens[i:i + max_chunk_tokens]) for i in range(0, len(tokens), max_chunk_tokens)]
+
+    print(f"🧩 Split methodology into {len(chunks)} storytelling chunks.")
+    append_progress(f"🧩 Split methodology into {len(chunks)} chunks for storytelling...")
+
+    # --- System message defines tone and structure ---
     system_message = (
-    "You are a world-class research narrator and technical explainer. "
-    "Your job is to transform a structured research methodology into a compelling, "
-    "story-driven explanation that flows naturally — from the motivation behind the method, "
-    "to how it works, and finally to what it accomplishes.\n\n"
+        "You are a world-class research narrator and technical explainer.\n\n"
+        "Your task: Convert a structured research methodology into a **story-driven explanation** "
+        "that flows naturally from the motivation behind the research, to how it works, and what it achieves.\n\n"
 
-    "🎯 Objective:\n"
-    "- Present the methodology as a **logical and engaging story**: why it exists, how it works, and what it achieves.\n"
-    "- Maintain 100% factual accuracy — no invented or speculative content.\n"
-    "- Strengthen **transitions and flow** between sections to create a smooth narrative experience.\n"
-    "- Start with a short context-setting introduction that explains the **problem and motivation**.\n"
-    "- Move step-by-step through the methodology, describing **how each component works** in a coherent flow.\n"
-    "- End with a clear description of **the outcome or effect** — what the method enables or achieves.\n\n"
+        "🎯 **Objectives:**\n"
+        "- Transform the technical methodology into a narrative that explains **why it started**, **how it works**, and **what it achieves**.\n"
+        "- Maintain 100% factual accuracy — no speculation.\n"
+        "- Strengthen transitions and flow between sections.\n"
+        "- Incorporate reviewer feedback when available to refine structure and engagement.\n\n"
 
-    "🪶 Tone and Style:\n"
-    "- Write like a science communicator who blends clarity with narrative rhythm.\n"
-    "- Use a consistent, engaging voice — imagine guiding the reader through an experiment or system demo.\n"
-    "- Replace abrupt transitions with smooth connectors (e.g., 'To address this challenge…', 'Next, the system…', 'As a result…').\n"
-    "- Simplify technical terms where possible, or define them briefly for accessibility.\n"
-    "- Use **short paragraphs** for pacing and **transitional phrases** to link sections.\n"
-    "- Include occasional natural analogies — only where they make complex ideas clearer.\n\n"
+        "🪶 **Tone & Style:**\n"
+        "- Write like a science storyteller guiding readers through an experiment.\n"
+        "- Use smooth transitions (e.g., 'To address this challenge…', 'Next, the system…', 'As a result…').\n"
+        "- Prefer clear, short paragraphs and natural pacing.\n"
+        "- Add light analogies or relatable phrasing only if it enhances clarity.\n\n"
 
-    "📘 Structure:\n"
-    "1️⃣ **Why it started** — What challenge or need led to this method?\n"
-    "2️⃣ **How it works (step-by-step)** — Describe the process or system logically and clearly.\n"
-    "3️⃣ **What it achieves** — Explain the outcome or purpose in context.\n\n"
+        "📘 **Narrative Structure:**\n"
+        "1️⃣ Why it started — what challenge led to this method?\n"
+        "2️⃣ How it works — step-by-step explanation of the process or system.\n"
+        "3️⃣ What it achieves — the key outcome or benefit.\n\n"
 
-    "⚙️ Rules:\n"
-    "- Keep all technical facts accurate and intact.\n"
-    "- Focus on readability, context, and flow rather than compression.\n"
-    "- Return only the final narrative text — no metadata, notes, or section titles."
+        "⚙️ **Output Rules:**\n"
+        "- Keep all technical facts intact.\n"
+        "- No reasoning, explanations, or <think> text.\n"
+        "- Return only the final, polished Markdown narrative, ready for Medium-style publication.\n"
+    )
 
-    "⚠️ STRICT OUTPUT RULES:\n"
-"- Never include reasoning, analysis, or thought process.\n"
-"- No '<think>' or 'analysis' text.\n"
-"- Return only the final, polished Markdown blog post — ready for publication.\n"
-"- The output must look like a cohesive Medium-style article, not a model response."
-)
+    story_parts = []
 
+    # --- Safe invoke with retries ---
+    def safe_invoke(messages, retries=2):
+        for attempt in range(retries):
+            try:
+                response = chat_groq.invoke(messages)
+                if hasattr(response, "content"):
+                    return response.content.strip()
+                return str(response).strip()
+            except Exception as e:
+                print(f"⚠️ Attempt {attempt + 1} failed: {e}")
+                time.sleep(2)
+        return "⚠️ Error generating this section."
 
+    # --- Process chunks sequentially ---
+    for idx, chunk in enumerate(chunks):
+        print(f"✍️ Generating storytelling section {idx + 1}/{len(chunks)}...")
+        append_progress(f"✍️ Generating storytelling section {idx + 1}/{len(chunks)}...")
 
-    user_message = f"Here is the extracted methodology text:\n\n{summary_text}\n\nNow rewrite it according to the above style."
+        user_message = (
+            f"Here is part {idx + 1} of the extracted methodology text:\n\n"
+            f"---\n{chunk}\n---\n\n"
+            "Rewrite this part into an engaging, factual, story-driven explanation following the structure above."
+        )
 
+        # Add feedback context only to the first chunk
+        if feedback and idx == 0:
+            user_message += f"\n\nReviewer feedback to incorporate:\n{feedback}\n"
 
-    messages = [
-        {"role": "system", "content": system_message},
-        {"role": "user", "content": user_message}
-    ]
+        story_part = safe_invoke([
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message}
+        ])
 
-    try:
-        response = chat_groq.invoke(messages)
-        story_output = response.content.strip() if hasattr(response, "content") else str(response).strip()
-    except Exception as e:
-        story_output = f"Error generating storytelling output with ChatGroq: {e}"
-        print(f"Error Story telling report with ChatGroq: {e}")
-        append_progress(f"Error generating Structured narrative with ChatGroq: {e}")
+        story_parts.append(story_part)
 
-    state.text = story_output
-    print("🎯 Methodology storytelling generated successfully with ChatGroq.")
+    # --- Merge and clean final story ---
+    full_story = "\n\n".join(story_parts).strip()
+
+    # Remove accidental duplicate sections or repeated headers
+    full_story = re.sub(r'(#+.*?)(\n\s*#+.*?)+', r'\1', full_story, flags=re.S)
+
+    # --- Save outputs ---
+    state.story_text = full_story
+    state.text = full_story
+
+    print("🎯 Storytelling generation complete — output is reader-ready.")
+    append_progress("✅ Storytelling generation complete.")
+
     return state

@@ -21,7 +21,7 @@ def storytelling_tool_node(state: PaperState) -> PaperState:
     append_progress("😂 Starting storytelling enhancement with the feedback shared by the reader agent and the feedback is:"+feedback[:100])
     
     if feedback:
-        print(f"🔹 Incorporating reader feedback into Humor creator:\n{feedback}")
+        print(f"🔹 Incorporating reader feedback into storytelling telling creator:\n{feedback}")
 
     summary_text = state.report
     if not summary_text:
@@ -75,10 +75,12 @@ def storytelling_tool_node(state: PaperState) -> PaperState:
         response = chat_groq.invoke(messages)
         story_output = response.content.strip() if hasattr(response, "content") else str(response).strip()
     except Exception as e:
-        story_output = f"Error generating storytelling output with ChatGroq: {e}"
+        #story_output = f"Error generating storytelling output with ChatGroq: {e}"
+        append_progress(f"Error generating storytelling output with ChatGroq: {e}")
+        story_output = summary_text
     # Store in both the generic report field and the dedicated story field
     state.report = story_output
-    state.story_text = story_output
+    #state.story_text = story_output
     print("🎯 Feedbacked Methodology storytelling generated successfully with ChatGroq.")
     append_progress("✅ Storytelling enhancement complete")
     return state

@@ -1,95 +1,109 @@
-from langchain_groq import ChatGroq
 import os
-from models import PaperState
 import re
+import tiktoken
+from langchain_groq import ChatGroq
+from models import PaperState
 from dotenv import load_dotenv
 from Helpersfunctions.progress import append_progress
-load_dotenv()
 
-#os.environ["GROQ_API_KEY"]=os.getenv("GROQ_API_KEY")
+load_dotenv()
 
 def summarize_text_node(state: PaperState) -> PaperState:
     """
-    Extract only the 'Methodology' section from each chunk of the research paper using ChatGroq.
-    Combines all extracted methodology parts into a single unified text.
+    Extracts the 'Methodology' section from a research paper using ChatGroq.
+    Uses tiktoken for safe chunking and avoids model context overflow.
     """
-    #chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="openai/gpt-oss-20b")
     chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="llama-3.1-8b-instant")
-    append_progress("Methodology agent is Working on it to extract the methodology only from the pdf text. It takes some time please wait...")
+
+    append_progress("⚙️ Methodology agent working on extraction... Please wait, this may take a few minutes.")
 
     text = state.text
     if not text:
-        state.methodology_summary = "No paper text available for methodology extraction."
+        state.methodology_summary = "⚠️ No paper text available for methodology extraction."
         return state
 
-    # Keep original text intact and process for methodology extraction
-    original_text = text
+    original_text = text.strip()
 
-    # Split text into chunks (to avoid token overflow)
-    chunk_size = 5000
-    chunks = [original_text[i:i + chunk_size] for i in range(0, len(original_text), chunk_size)]
+    # --- Tokenizer-based safe chunking (tiktoken: no auth, lightweight) ---
+    enc = tiktoken.get_encoding("cl100k_base")
+    tokens = enc.encode(original_text)
+    max_chunk_tokens = 3000  # ~safe context size
+    chunks = [enc.decode(tokens[i:i + max_chunk_tokens]) for i in range(0, len(tokens), max_chunk_tokens)]
 
     methodology_parts = []
 
-    # System message defines behavior clearly
+    # --- System instruction for LLM ---
     system_message = (
-    "You are a precise academic summarizer specializing in reconstructing the *methodology* "
-    "sections of research papers from multiple text chunks.\n\n"
-    "Your job is to extract, clarify, and organize all **technical and procedural details** "
-    "that describe *how the proposed method works*.\n\n"
-    "⚙️ Focus on:\n"
-    "- Experimental design, architecture, workflow, data handling, algorithms, and training.\n"
-    "- Preserving factual accuracy and domain terminology.\n"
-    "- Maintaining continuity — assume earlier or later chunks may describe related parts.\n"
-    "- Avoid repeating introduction or conclusion if already implied.\n\n"
-    "📘 Output Guidelines:\n"
-    "- Return a well-organized Markdown structure (headings, subpoints, and lists where helpful).\n"
-    "- Keep tone professional and factual — no storytelling or creative phrasing.\n"
-    "- Avoid summary words like 'In conclusion' or 'Overall' — this is not the end of the paper.\n"
-    "- Focus only on extracting all methodology-related information from this chunk.\n"
-    "- If no methodology content is found, return an empty string.\n")
+        "You are an expert scientific content extractor specializing in *methodology* reconstruction.\n\n"
+        "🎯 Your job:\n"
+        "- Identify and extract **only methodology-related content** from the given text.\n"
+        "- Include all relevant details about **workflow, algorithms, architectures, datasets, training, evaluation, and implementation steps**.\n"
+        "- Maintain **technical precision** and **logical completeness** — assume the methodology may span across chunks.\n"
+        "- Skip unrelated content (introduction, abstract, results, discussions, etc.).\n\n"
+        "🧩 Output:\n"
+        "- Return a clean, structured Markdown-style extract.\n"
+        "- Do NOT add conclusions, summaries, or personal comments.\n"
+        "- If this chunk contains no methodology, return an empty string."
+    )
 
-    # Process each chunk (process all chunks by default)
-    print(f"🧩 Total chunks to process for methodology extraction: {len(chunks)}")
-    append_progress(f"Starting methodology extraction: {len(chunks)} chunks")
-    for idx, chunk in enumerate(chunks):
-        print(f"🧩 Processing chunk {idx + 1}/{len(chunks)} for Methodology expert structuring...")
-        append_progress(f"🧩 Processing chunk {idx + 1}/{len(chunks)} for Methodology expert structuring...")
-        messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": (f"Read the following research paper text chunk carefully and extract ONLY the parts "
-    f"that describe the **methodology** — i.e., how the proposed system, model, or experiment works.\n\n"
-    f"Paper Chunk {idx+1}:\n{chunk}\n\n"
-    f"Return only the extracted methodology text, keeping all technical details intact. "
-    f"If none is found, return an empty string.")}
-        ]
+    print(f"🧩 Total chunks to process: {len(chunks)}")
+    append_progress(f"Processing {len(chunks)} methodology chunks...")
 
+    # --- Safe LLM call ---
+    def safe_invoke(messages):
         try:
-            response = chat_groq.invoke(messages)
-            extracted = response.content.strip() if hasattr(response, "content") else str(response).strip()
+            return chat_groq.invoke(messages)
         except Exception as e:
-            extracted = f"[Error extracting from chunk {idx+1}: {e}]"
+            if "Request too large" in str(e):
+                print("⚠️ Chunk too large — skipping to prevent overload.")
+                append_progress("⚠️ Skipped one large chunk due to token overflow.")
+                return None
+            else:
+                print(f"❌ LLM invocation failed: {e}")
+                append_progress(f"❌ LLM invocation failed: {e}")
+                return None
 
-        if extracted:
-            methodology_parts.append(extracted)
+    # --- Iterate over chunks ---
+    for idx, chunk in enumerate(chunks):
+        print(f"🧩 Processing chunk {idx + 1}/{len(chunks)}...")
+        append_progress(f"🧩 Extracting methodology from chunk {idx + 1}/{len(chunks)}...")
 
-    # Merge all extracted methodology segments
+        user_message = (
+            f"Read the following research paper text carefully and extract **only methodology-related content** — "
+            f"details on how the system, model, or experiment works.\n\n"
+            f"---\n{chunk}\n---\n\n"
+            f"Return only the methodology details in Markdown form."
+        )
+
+        response = safe_invoke([
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message}
+        ])
+
+        if response and hasattr(response, "content"):
+            extracted = response.content.strip()
+            if extracted:
+                methodology_parts.append(extracted)
+        else:
+            print(f"⚠️ Skipping chunk {idx + 1} due to empty or failed response.")
+            append_progress(f"⚠️ Skipping chunk {idx + 1} due to empty or failed response.")
+
+    # --- Merge all extracted segments ---
     combined_methodology = "\n\n".join(methodology_parts).strip()
 
-    # Optional: Deduplicate overlapping lines
-    combined_methodology = re.sub(r'(\b[\w\s,.-]{10,}\b)(?:\s+\1)+', r'\1', combined_methodology)
+    # --- Deduplicate overlapping lines ---
+    combined_methodology = re.sub(r'(\b[\w\s,.-]{20,}\b)(?:\s+\1)+', r'\1', combined_methodology)
 
-
-    # Assign methodology to its own field and preserve full text
+    # --- Save final methodology ---
     state.methodology_summary = (
-        "## Methodology\n"
+        "## Methodology\n\n"
         f"{combined_methodology if combined_methodology else 'No methodology content extracted.'}"
     )
 
-    # Keep original extracted text in state.text for downstream processing
+    # Keep extracted text for next pipeline steps
     state.text = combined_methodology
 
-    print("🧩 Methodology extraction complete using ChatGroq.")
-    print(f"Extracted methodology length: {len(combined_methodology)} chars")
-    append_progress(f"Methodology extraction complete: {len(combined_methodology)} chars")
+    print(f"✅ Methodology extraction complete. Total length: {len(combined_methodology)} chars")
+    append_progress(f"✅ Methodology extraction complete: {len(combined_methodology)} chars")
+
     return state

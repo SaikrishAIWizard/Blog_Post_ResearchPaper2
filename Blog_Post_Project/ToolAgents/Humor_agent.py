@@ -23,11 +23,11 @@ def structured_narrative_tool(state: PaperState) -> PaperState:
     chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="openai/gpt-oss-safeguard-20b")
     
     story_text = state.report
-    print("Getting error after summary_text")
+    #print("Getting error after summary_text")
     #feedback = state.last_feedback
     
     if feedback:
-        print(f"🔹 Incorporating structured_narrative_tool feedback into Humor creator:\n{feedback}")
+        print(f"🔹 Incorporating structured_narrative_tool feedback into creator:\n{feedback}")
         
         # Your humor processing logic here
         humor_result = "Processed humor with feedback..."
@@ -97,11 +97,14 @@ def structured_narrative_tool(state: PaperState) -> PaperState:
         response = chat_groq.invoke(messages)
         humorized_story = response.content.strip() if hasattr(response, "content") else str(response).strip()
     except Exception as e:
-        humorized_story = f"Error generating humor with ChatGroq: {e}"
+        #humorized_story = f"Error generating humor with ChatGroq: {e}"
+        append_progress(f"Error generating humor with ChatGroq: {e}")
+        print(f"Error generating humor with ChatGroq: {e}")
+        humorized_story = story_text
 
     # Store humorized output in both report and humor_text so downstream code can access it
-    print("😂 Contextual humor-enhanced storytelling generated successfully with ChatGroq.")
+    print("Contextual humor-structured_narrative_tool storytelling generated successfully with ChatGroq.")
     state.report = humorized_story
-    state.humor_text = humorized_story
+    #state.humor_text = humorized_story
     append_progress("✅ Narrative tool naration is completed")
     return state

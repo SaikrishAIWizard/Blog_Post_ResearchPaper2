@@ -164,7 +164,7 @@ def tool_calling_llm(state: PaperState) -> PaperState:
         print(f"🔹 LLM response: {response}")
 
         # Default
-        next_node = "generate_report"
+        next_node = "END"
 
         # Extract structured feedback from response content
         feedback_text = response.content.strip() if hasattr(response, "content") else str(response).strip()
