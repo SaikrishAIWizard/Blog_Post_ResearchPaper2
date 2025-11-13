@@ -14,7 +14,7 @@ def storytelling_node(state: PaperState) -> PaperState:
     using ChatGroq with clear system+user messages.
     """
 
-    chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="openai/gpt-oss-20b")
+    chat_groq = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="meta-llama/llama-prompt-guard-2-86m")
     
     append_progress("Storytelling agent is Working on it to make the explanation easy with real world examples")
 
