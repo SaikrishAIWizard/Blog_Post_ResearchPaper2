@@ -136,50 +136,27 @@ import smtplib
 from email.message import EmailMessage
 
 
-from xhtml2pdf import pisa
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
 import markdown
 from io import BytesIO
 
 def generate_pdf_from_markdown(md_text):
     # Convert Markdown → HTML
-    html = markdown.markdown(md_text)
-
-    # Add simple styling
-    html = f"""
-    <html>
-    <head>
-        <style>
-            body {{
-                font-family: Helvetica, Arial, sans-serif;
-                padding: 20px;
-                font-size: 12pt;
-            }}
-            h1, h2, h3 {{
-                color: #003366;
-            }}
-            pre {{
-                background: #f4f4f4;
-                padding: 10px;
-                border-radius: 5px;
-            }}
-            table {{
-                width: 100%;
-                border-collapse: collapse;
-            }}
-            table, th, td {{
-                border: 1px solid black;
-                padding: 6px;
-            }}
-        </style>
-    </head>
-    <body>
-        {html}
-    </body>
-    </html>
-    """
+    html_text = markdown.markdown(md_text)
 
     buffer = BytesIO()
-    pisa.CreatePDF(html, dest=buffer)
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+
+    for line in html_text.split("\n"):
+        story.append(Paragraph(line, styles["Normal"]))
+        story.append(Spacer(1, 0.15 * inch))
+
+    doc.build(story)
 
     buffer.seek(0)
     return buffer.read()

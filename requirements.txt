@@ -9,9 +9,9 @@ pypdf
 arxiv
 pymupdf
 wikipedia
-xhtml2pdf 
-markdown
 lxml
 langchain_huggingface
 langchain-groq
 ipython
+reportlab 
+markdown
