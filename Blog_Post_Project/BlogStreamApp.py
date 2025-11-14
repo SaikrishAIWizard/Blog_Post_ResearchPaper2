@@ -354,7 +354,7 @@ if run_button and user_input:
     # ---- Background thread (no Streamlit calls) ----
     def run_workflow():
         try:
-            append_progress("⏳ Started processing research paper")
+            append_progress("⏳ Started processing research paper It will takes less than 5 mins please wait. After completion you will receive a report mail.")
             result = graph.invoke({"research_paper": user_input}, config={"recursion_limit": recursion_limit})
             workflow_result["final_state"] = result
             append_progress("✅ Workflow finished successfully")
