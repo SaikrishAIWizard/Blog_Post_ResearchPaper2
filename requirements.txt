@@ -9,7 +9,6 @@ pypdf
 arxiv
 pymupdf
 wikipedia
-reportlab
 xhtml2pdf 
 markdown
 lxml

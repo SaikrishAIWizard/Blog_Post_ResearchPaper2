@@ -8,8 +8,6 @@ import time
 import threading
 from Helpersfunctions.progress import clear as clear_progress, get_messages, append_progress, set_result, get_result
 from groq import Groq
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv()
