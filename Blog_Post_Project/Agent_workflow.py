@@ -205,7 +205,7 @@ def tool_calling_llm(state: PaperState) -> PaperState:
         feedback_text = f"LLM error: {e}"
         specific_issues = str(e)
         action_items = "Manual review required"
-        rating = 0.0
+        rating = getattr(state, 'reader_rating', '')
         next_node = "END"
 
     # Update state

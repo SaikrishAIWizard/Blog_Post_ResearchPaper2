@@ -13,3 +13,6 @@ lxml
 langchain_huggingface
 langchain-groq
 ipython
+reportlab
+xhtml2pdf 
+markdown

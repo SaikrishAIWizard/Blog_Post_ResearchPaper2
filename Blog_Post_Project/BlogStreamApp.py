@@ -8,6 +8,15 @@ import time
 import threading
 from Helpersfunctions.progress import clear as clear_progress, get_messages, append_progress, set_result, get_result
 from groq import Groq
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from io import BytesIO
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
+os.environ["STREAMLIT_SERVER_FILE_WATCHER_TYPE"] = "none"
+
 
 # ============ PAGE CONFIGURATION ============
 st.set_page_config(
@@ -125,6 +134,98 @@ def serialize_state_to_dict(state):
         state_dict["error"] = str(e)
     return state_dict
 
+import smtplib
+from email.message import EmailMessage
+
+
+from xhtml2pdf import pisa
+import markdown
+from io import BytesIO
+
+def generate_pdf_from_markdown(md_text):
+    # Convert Markdown → HTML
+    html = markdown.markdown(md_text)
+
+    # Add simple styling
+    html = f"""
+    <html>
+    <head>
+        <style>
+            body {{
+                font-family: Helvetica, Arial, sans-serif;
+                padding: 20px;
+                font-size: 12pt;
+            }}
+            h1, h2, h3 {{
+                color: #003366;
+            }}
+            pre {{
+                background: #f4f4f4;
+                padding: 10px;
+                border-radius: 5px;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+            }}
+            table, th, td {{
+                border: 1px solid black;
+                padding: 6px;
+            }}
+        </style>
+    </head>
+    <body>
+        {html}
+    </body>
+    </html>
+    """
+
+    buffer = BytesIO()
+    pisa.CreatePDF(html, dest=buffer)
+
+    buffer.seek(0)
+    return buffer.read()
+
+
+def send_email_report(to_email, subject, body, attachment_content=None, attachment_name=None):
+    try:
+        sender_email = "vijayasatya369@gmail.com"  # change this
+        sender_password = os.getenv("EMAIL_APP_PASSWORD")  # set via environment variable for safety
+
+        msg = EmailMessage()
+        msg["From"] = sender_email
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.set_content(body)
+
+        if attachment_content and attachment_name:
+
+            # 1️⃣ Generate real PDF bytes
+            pdf_bytes = generate_pdf_from_markdown(attachment_content)
+
+            msg.add_attachment(
+                pdf_bytes,
+                maintype="application",
+                subtype="pdf",
+                filename=attachment_name + ".pdf"
+            )
+
+            # 2️⃣ Attach Markdown text
+            msg.add_attachment(
+                attachment_content.encode("utf-8"),
+                maintype="text",
+                subtype="markdown",
+                filename=attachment_name + ".md"
+            )
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(sender_email, sender_password)
+            smtp.send_message(msg)
+        return True, "✅ Email sent successfully!"
+    except Exception as e:
+        return False, f"❌ Failed to send email: {e}"
+
+
 
 # ============ INITIAL STATE ============
 if 'final_state' not in st.session_state:
@@ -178,6 +279,23 @@ with st.sidebar:
     else:
         st.info("Please enter your Groq API key to enable blog generation.")
 
+    st.markdown(
+    """
+    <a href="https://console.groq.com/keys" target="_blank">
+        <button style="
+            background-color:#4CAF50;
+            color:white;
+            padding:8px 16px;
+            border:none;
+            border-radius:6px;
+            cursor:pointer;
+        ">🔑 Get Groq API Key</button>
+    </a>
+    """,
+    unsafe_allow_html=True
+)
+
+
     st.divider()
 
     # --- 🔁 Recursion Limit / Max Iterations ---
@@ -220,6 +338,10 @@ with col1:
     input_type = st.radio("Input Type", ["ArXiv ID", "Research Topic"], horizontal=True)
 with col2:
     user_input = st.text_input("Enter Value", placeholder="e.g., 2005.11401 or Attention Mechanisms")
+    #st.divider()
+    # --- 📧 Email Configuration ---
+    #st.subheader("📧 Report Delivery")
+    email_id = st.text_input("Enter your email to receive the report", placeholder="example@email.com")
 st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -229,7 +351,7 @@ col1, col2 = st.columns([2, 1])
 run_button = col1.button(
     "🚀 Generate Blog Post",
     use_container_width=True,
-    disabled=not user_input or st.session_state.is_processing or "GROQ_API_KEY" not in os.environ
+    disabled=not user_input or st.session_state.is_processing or "GROQ_API_KEY" not in os.environ or not email_id
 )
 
 col2.button("💾 Download", use_container_width=True, disabled=st.session_state.final_state is None)
@@ -296,6 +418,25 @@ if run_button and user_input:
         st.session_state.final_state = workflow_result["final_state"]
         st.session_state.execution_time = time.time() - start_time
         st.markdown(f"<div class='success-box'>✅ Blog post generated successfully in {format_duration(st.session_state.execution_time)}!</div>", unsafe_allow_html=True)
+                # --- Send email if provided ---
+        if email_id:
+            report_text = st.session_state.final_state.get("report")
+            if report_text:
+                attachment_name = f"blog_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                success, msg = send_email_report(
+                    to_email=email_id,
+                    subject="📰 Your AI-Generated Research Blog Report",
+                    body=f"Hi there,\n\nYour requested research blog report is attached.\n\nGenerated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nBest,\nAI Blog Agent 🤖",
+                    attachment_content=report_text,
+                    attachment_name=attachment_name
+                )
+                if success:
+                    st.markdown(f"<div class='success-box'>{msg}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<div class='warning-box'>{msg}</div>", unsafe_allow_html=True)
+            else:
+                st.warning("Report generated but no text found to send via email.")
+
 
     st.session_state.is_processing = False
     st.rerun()
